@@ -1,0 +1,198 @@
+# UZI 量化规则配置 — A股特化版
+
+# 通用设置
+mode: A股
+
+# ═══════════════════════════════════════════
+# 一票否决（满足任意一条即淘汰）
+# ═══════════════════════════════════════════
+hard_block_rules:
+  - rule_id: H001
+    name: 非ST/*ST
+    dimension: 风控
+    weight: -100
+    condition: "股票状态 != '正常'"
+  - rule_id: H002
+    name: 日均成交额>5000万
+    dimension: 流动性
+    weight: -100
+    condition: "avg_daily_turnover < 5000万"
+  - rule_id: H003
+    name: 流通市值>50亿
+    dimension: 流动性
+    weight: -100
+    condition: "market_cap < 50亿"
+  - rule_id: H004
+    name: 近3月无重大负面
+    dimension: 风控
+    weight: -100
+    condition: "major_negative_event == True"
+  # A股特有：近3月有解禁/减持的降级处理
+  - rule_id: H005
+    name: 近3月无非正常减持
+    dimension: 风控
+    weight: -80
+    condition: "recent_abnormal_sell == True"
+  # A股特有：排除一字板封死买不进的情况
+  - rule_id: H006
+    name: 非一字涨停
+    dimension: 流动性
+    weight: -80
+    condition: "limit_up_volume_ratio < 0.1"
+
+# ═══════════════════════════════════════════
+# 打分规则
+# ═══════════════════════════════════════════
+scoring_rules:
+  # ── 估值类（通用） ──
+  - rule_id: V01
+    name: PE_TTM合理
+    dimension: 估值
+    weight: 8
+    condition: "pe_ttm < industry_mean_pe * 1.5"
+  - rule_id: V02
+    name: PB合理
+    dimension: 估值
+    weight: 6
+    condition: "pb < 5"
+  - rule_id: V03
+    name: PS合理
+    dimension: 估值
+    weight: 5
+    condition: "ps < 10"
+  - rule_id: V04
+    name: PEG合理
+    dimension: 估值
+    weight: 6
+    condition: "peg < 2"
+
+  # ── 成长类（通用） ──
+  - rule_id: G01
+    name: 营收正增长
+    dimension: 成长
+    weight: 8
+    condition: "revenue_growth > 0"
+  - rule_id: G02
+    name: 利润弹性
+    dimension: 成长
+    weight: 7
+    condition: "profit_growth > revenue_growth"
+  - rule_id: G03
+    name: ROE达标
+    dimension: 成长
+    weight: 6
+    condition: "roe > 8"
+  - rule_id: G04
+    name: 毛利率稳定
+    dimension: 成长
+    weight: 5
+    condition: "gross_margin_trend >= 0"
+
+  # ── 资金类（A股特有方向） ──
+  - rule_id: F01
+    name: 北向资金流入
+    dimension: 资金
+    weight: 7
+    condition: "north_flow_5d > 0"
+  - rule_id: F02
+    name: 主力资金流入
+    dimension: 资金
+    weight: 6
+    condition: "main_flow_5d > 0"
+  - rule_id: F03
+    name: 融资增长
+    dimension: 资金
+    weight: 4
+    condition: "margin_change_5d > 0"
+  - rule_id: F04
+    name: 成交量温和
+    dimension: 资金
+    weight: 4
+    condition: "volume_trend == 'expanding'"
+  # A股特有：龙虎榜游资净买入
+  - rule_id: F05
+    name: 龙虎榜游资活跃
+    dimension: 资金
+    weight: 5
+    condition: "dragon_net_buy > 0"
+  # A股特有：散户持股比例适中（>35%回避）
+  - rule_id: F06
+    name: 散户占比适中
+    dimension: 资金
+    weight: 4
+    condition: "retail_ratio < 35"
+
+  # ── 技术类（A股特有方向） ──
+  - rule_id: T01
+    name: 中期趋势向上
+    dimension: 技术
+    weight: 6
+    condition: "ma20_direction == 'up'"
+  - rule_id: T02
+    name: MACD金叉
+    dimension: 技术
+    weight: 5
+    condition: "macd_signal == 'golden_cross'"
+  - rule_id: T03
+    name: RSI非超买
+    dimension: 技术
+    weight: 4
+    condition: "rsi_14 < 70"
+  - rule_id: T04
+    name: 布林带未过热
+    dimension: 技术
+    weight: 3
+    condition: "bb_position < 0.97"
+  # A股特有：涨停后放量（T+1风险控制）
+  - rule_id: T05
+    name: 涨停次日非一字
+    dimension: 技术
+    weight: 5
+    condition: "gap_up_from_limit < 7"
+
+  # ── A股特有：政策催化类（新增维度） ──
+  - rule_id: P01
+    name: 政策直接受益
+    dimension: 政策
+    weight: 8
+    condition: "policy_direct_benefit == True"
+  - rule_id: P02
+    name: 产业规划匹配
+    dimension: 政策
+    weight: 6
+    condition: "industry_plan_match >= 2"
+
+# ── A股特有：概念炒作周期评估（新增维度） ──
+concept_cycle:
+  # 概念炒作有明确的启动→高潮→退潮节奏
+  # 在退潮期买入 = 接盘
+  phases:
+    - name: "启动期"
+      score_bonus: 15
+      signs: ["首次有政策/新闻催化", "龙头1-2只涨停", "板块整体放量"]
+    - name: "高潮期"
+      score_bonus: 5
+      signs: ["多只跟风涨停", "散户开始讨论", "成交量暴增"]
+    - name: "退潮期"
+      score_bonus: -20
+      signs: ["龙头开板", "跟风股回落", "成交量萎缩但价格仍高"]
+    - name: "散潮期"
+      score_bonus: -30
+      signs: ["无人讨论", "股价阴跌", "成交量回归正常"]
+
+# ── 总分阈值 ──
+pass_threshold: 70  # 70分以上通过初筛
+max_candidates: 5   # 最多保留5只候选
+
+# ── T+1冷静检查（A股特有） ──
+t_plus_1_check:
+  enabled: true
+  # 今天买入的股票明天才能卖，所以必须有隔夜持有的逻辑
+  overnight_hold_capable: true  # 是否愿意隔夜持有
+  gap_risk_tolerance: 3.0  # 能接受次日低开多少%
+
+# 龙虎榜
+dragon_tiger_risk:
+  consecutive_buy_days_warn: 3
+  net_buy_ratio_warn: 0.3
+  retail_concentration_warn: 0.5
