@@ -3,6 +3,17 @@ name: stock-picker-pipeline
 description: >
   五层选股流水线。从热点事件到最终策略执行。
   触发：用户说"选股分析"、"产业链筛选"、"帮我看看[事件/行业]的标的"
+
+## 🚫 When NOT To Use
+- 用户需要的是行业整体行情/板块轮动/财经快讯概览 → 用 `investment-advisor`
+- 用户需要的不是 A 股选股（如美股/港股/加密）→ 用 `deep-research` 或 vibe-trading 工具
+- 用户只是要看持仓/账户/历史 → 通过 vibe-trading 交易连接器
+- 非金融场景 → 不需要触发
+
+## 🔗 Related Skills
+- **investment-advisor**: 行业投研+全市场监测，stock-picker-pipeline 做具体标的筛选
+- **deep-research**: 通用深度调研当不限于 A 股时
+- **vibe-trading**: 提供回测、行情、因子分析等 MCP 工具，pipeline 是策略流程
   也由 cron 定时触发：热点事件变化时自动走完整管线
 compatibility: >
   依赖：python3, yaml, json
