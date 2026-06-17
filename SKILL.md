@@ -3,6 +3,7 @@ name: stock-picker-pipeline
 description: >
   五层选股流水线。从热点事件到最终策略执行。
   触发：用户说"选股分析"、"产业链筛选"、"帮我看看[事件/行业]的标的"
+---
 
 ## 🚫 When NOT To Use
 - 用户需要的是行业整体行情/板块轮动/财经快讯概览 → 用 `investment-advisor`
@@ -18,7 +19,6 @@ description: >
 compatibility: >
   依赖：python3, yaml, json
   外部：event_collector_v3（可选复用）
----
 
 # 选股流水线 — Stock Picker Pipeline
 
